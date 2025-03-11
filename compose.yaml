@@ -1,0 +1,43 @@
+---
+services:
+  # Container: Tailscale
+  ts_${hostname}:
+    image: tailscale/tailscale:latest
+    hostname: ${hostname}
+    environment:
+      - TS_AUTHKEY=tskey-client-kVxk2VPBd321CNTRL-qwvhMnprcm4qpxKjovnDn4Dp6iJtjXQc?ephemeral=false
+      - TS_EXTRA_ARGS=--advertise-tags=tag:container
+      - TS_SERVE_CONFIG=/config/ts_${hostname}.json
+      - TS_STATE_DIR=/var/lib/tailscale
+    volumes:
+      - ts_data_${hostname}:/var/lib/tailscale
+      - /containers/${hostname}/ts_config:/config
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    restart: unless-stopped
+  # Container: ${hostname}
+  homeassistant:
+    image: ${image}     # required
+    container_name: ${hostname}     # required
+    network_mode: service:ts_${hostname}     # required
+    privileged: true     # required
+    environment:     # add/delete/modify as needed
+      - PUID=1000
+      - PGID=1000
+      - TZ=Australia/Brisbane
+    volumes:     # optional
+      - /containers/homeassistant/config:/config
+      - /var/run/dbus:/var/run/dbus:ro
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      - ts_${hostname}      
+    restart: unless-stopped
+
+volumes:
+  ts_data_${hostname}:
+    driver: local   
